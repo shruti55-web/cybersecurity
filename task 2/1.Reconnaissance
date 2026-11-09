@@ -1,0 +1,84 @@
+1. Reconnaissance
+
+Information gathering before any intrusive testing. Better recon means better targeting later.
+
+1.1 Passive Recon
+
+You never send packets to the target’s own systems. You use public sources, so detection risk is almost zero.
+
+Whois
+
+Looks up domain registration data from registrars and registries.
+Shows: registrar, creation and expiry dates, name servers, registrant organization and contacts (often hidden by privacy protection), and status flags.
+Use: find who owns a domain, discover related domains, and learn the DNS provider.
+Command: whois example.com. It also works on IP addresses: whois 8.8.8.8 shows the owning network and ISP.
+
+Nslookup (DNS lookup)
+DNS turns names into IPs. Querying it reveals infrastructure.
+
+Record	Meaning
+A / AAAA	IPv4 / IPv6 address
+MX	Mail servers
+NS	Authoritative name servers
+TXT	SPF, DKIM, domain verification tokens (reveals email and SaaS services used)
+CNAME	Alias to another name
+PTR	Reverse lookup (IP to name)
+SOA	Zone authority info
+nslookup example.com
+nslookup -type=MX example.com
+nslookup -type=NS example.com
+nslookup -type=TXT example.com
+dig and host do the same with more detail.
+Zone transfer (AXFR): a misconfigured DNS server may hand over its entire zone: dig axfr example.com @ns1.example.com. This is a classic misconfiguration finding.
+Technically you query a DNS server, not the target, so it counts as passive.
+
+Google Dorking
+Using search operators to find information the target exposed by accident.
+
+Operator	Use
+site:	Restrict to a domain
+filetype:	Specific file type (pdf, xls, log, sql)
+inurl:	Text in URL (admin, login)
+intitle:	Text in page title (intitle:"index of" finds open directories)
+intext:	Text in body
+-	Exclude a term
+" "	Exact phrase
+
+Examples:
+
+site:example.com filetype:pdf
+site:example.com inurl:admin
+intitle:"index of" "backup"
+
+The Google Hacking Database (GHDB) on Exploit-DB lists ready-made dorks. Defense: use robots.txt carefully, remove sensitive files, and use authentication.
+
+Shodan
+
+A search engine that scans the whole internet and indexes devices and their service banners.
+You query Shodan’s database, so you don’t touch the target.
+Finds: open ports, software versions, exposed webcams, databases, routers, industrial systems, and known vulnerabilities.
+Filters: hostname:, org:, port:, country:, product:, os:, net: (e.g. port:3389 country:IN).
+Similar tools: Censys, ZoomEye, FOFA.
+
+
+1.2 Active Recon
+
+You send traffic to the target. It can be logged or trigger IDS/IPS alerts, so written authorization is mandatory.
+
+Ping Sweep
+
+Sends ICMP echo requests to a whole range to find live hosts.
+nmap -sn 192.168.56.0/24 (-sn means no port scan). Alternative: fping -a -g 192.168.56.0/24.
+On a local network Nmap uses ARP, which is more reliable than ICMP. On remote networks it also sends TCP probes to ports 443 and 80.
+Limitation: firewalls often block ICMP, so a silent host may still be alive. -Pn skips host discovery and treats all hosts as up.
+
+Banner Grabbing
+
+Connecting to an open port and reading the greeting the service sends, which often reveals software and version (e.g. Apache/2.2.8, vsftpd 2.3.4).
+Commands:
+  nc -v 192.168.56.101 21
+  curl -I http://192.168.56.101
+  nmap -sV 192.168.56.101
+  nmap --script banner 192.168.56.101
+Use: match versions to known CVEs.
+Defense: hide or minimize banners (e.g. Apache ServerTokens Prod). Banners can be faked, so verify.

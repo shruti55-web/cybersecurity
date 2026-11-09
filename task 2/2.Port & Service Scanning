@@ -1,0 +1,62 @@
+2. Port and Service Scanning with Nmap
+2.1 Basics
+Nmap (Network Mapper) discovers hosts, open ports, services, versions, and operating systems.
+A port is a numbered endpoint (0 to 65535) for a service. Each port uses TCP or UDP.
+
+Port states
+
+State	              Meaning
+open	              A service is listening
+closed	              Reachable, but nothing listening (replies RST)
+filtered              Firewall drops packets, so Nmap can’t tell
+unfiltered            Reachable, but open or closed unknown (ACK scan)
+open|filtered	      Can’t distinguish (common in UDP)
+closed|filtered	      Can’t distinguish (rare, idle scan)
+
+2.2 TCP Three-Way Handshake (needed to understand scans)
+Client sends SYN
+Server replies SYN/ACK (port open) or RST (port closed)
+Client sends ACK and the connection is established
+
+2.3 TCP SYN Scan: -sS
+Sends SYN, reads the reply, then sends RST instead of completing the handshake (“half-open”, so it often isn’t logged by the application).
+SYN/ACK = open, RST = closed, no reply or ICMP unreachable = filtered.
+Fast and the default when running as root. Needs raw sockets (sudo).
+Without root, Nmap uses -sT (full connect scan), which completes the handshake and is easier to log.
+Commands: sudo nmap -sS 192.168.56.101, -p- for all ports, -p 22,80,443 for specific ones.
+
+2.4 UDP Scan: -sU
+UDP has no handshake. A reply means open, an ICMP port unreachable means closed, and silence means open|filtered.
+Slow because closed ports rate-limit ICMP replies. Use --top-ports 100 or specific ports.
+Important UDP services: DNS 53, DHCP 67/68, TFTP 69, NTP 123, SNMP 161, IKE 500.
+Pair with -sV to help resolve uncertain ports.
+Combined: sudo nmap -sS -sU -p T:22,80,U:53,161 <ip>
+
+2.5 Service Version Detection: -sV
+Probes open ports and compares replies with a signature database to find the product and version.
+Finds services on non-standard ports.
+--version-intensity 0-9 controls how many probes are used (--version-light, --version-all).
+Output example: 21/tcp open ftp vsftpd 2.3.4. This is what you search for CVEs.
+
+2.6 OS Detection: -O
+Sends crafted packets and fingerprints the TCP/IP stack (TTL, window size, TCP options, etc.).
+Needs at least one open and one closed TCP port for best accuracy.
+Gives a best guess with a confidence percentage. Firewalls, NAT, and virtualization reduce accuracy.
+Helpers: --osscan-guess, --osscan-limit.
+
+2.7 Other Useful Options
+Option	Purpose
+-A	Aggressive: -sV, -O, default scripts, traceroute
+-T0 to -T5	Timing templates (T3 default, T4 is common in labs)
+-Pn	Skip host discovery
+-p-	All 65,535 ports
+--top-ports N	Most common N ports
+-sC / --script	Run NSE scripts (e.g. --script vuln)
+-v / -vv	Verbose
+-oN / -oX / -oG / -oA	Normal / XML / greppable / all three
+
+2.8 Writing the Scan Report
+
+Sections: title page, objective and scope, environment (Kali, Nmap version, target), methodology (commands and what each does), results (host summary, port and service table, screenshots), analysis (why each risky service matters, with CVEs), recommendations, conclusion, appendix (raw output, limitations).
+
+Example analysis points on Metasploitable2: vsftpd 2.3.4 backdoor (CVE-2011-2523), Telnet cleartext, outdated Samba and Apache, MySQL exposed, old OS kernel.

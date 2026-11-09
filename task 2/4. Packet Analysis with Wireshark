@@ -1,0 +1,42 @@
+4.1 Basics
+Wireshark captures packets and shows them in three panes: packet list, packet details (layers), packet bytes.
+Capture: pick the interface (eth0 on Kali, or the host-only adapter), start capture, generate traffic, stop, save as .pcapng.
+Capture filter (applied before capturing, BPF syntax): host 192.168.56.101, port 21.
+Display filter (applied after capture): the ones below.
+Useful views: Statistics → Conversations / Protocol Hierarchy / I/O Graph, and Follow → TCP Stream.
+
+4.2 Capturing HTTP, FTP, and DNS
+Protocol	Display filter	Notes
+HTTP	http	Requests, responses, headers, cleartext forms
+FTP	ftp	Commands USER, PASS, RETR, STOR (port 21)
+DNS	dns	Queries and responses (UDP 53)
+
+Generate traffic: browse to the Metasploitable2 web server, log in to its FTP (ftp 192.168.56.101), and run nslookup or dig.
+
+Other handy filters: ip.addr == 192.168.56.101, tcp.port == 80, http.request.method == "POST", dns.qry.name contains "example", tcp.flags.syn == 1.
+
+4.3 Finding Credentials in Unencrypted FTP
+FTP sends the username and password in plain text.
+Filter: ftp.request.command == "USER" || ftp.request.command == "PASS"
+Or right-click a packet and choose Follow → TCP Stream to read the whole session.
+Lesson: anyone on the network path can read these. Use SFTP or FTPS, HTTPS instead of HTTP, and encrypted protocols in general.
+Same applies to Telnet, HTTP basic auth, and POP3 or IMAP without TLS.
+
+4.4 SYN Flood Attack Analysis
+
+What it is: a denial-of-service attack. The attacker sends many SYN packets (often with spoofed source IPs) and never completes the handshake. The server keeps half-open connections in its backlog until the table is full, so legitimate users are refused.
+
+Simulating in the lab (own VMs only):
+
+sudo hping3 -S -p 80 --flood 192.168.56.101           # SYN flood
+sudo hping3 -S -p 80 -i u1000 -c 2000 192.168.56.101  # controlled, limited version
+
+(-S = SYN flag, --flood = as fast as possible, -i u1000 = interval in microseconds, -c = packet count.) Using the controlled version is safer for a demo.
+
+Spotting it in Wireshark:
+
+Filter: tcp.flags.syn == 1 && tcp.flags.ack == 0
+Signs: a huge number of SYNs in a short time, many from one source (or random sources if spoofed), few or no completed handshakes, repeated SYN/ACKs or RSTs from the server.
+Statistics → Conversations shows packet counts per IP. I/O Graph shows the sudden spike.
+
+Defenses: SYN cookies (net.ipv4.tcp_syncookies=1), rate limiting with iptables, reducing SYN timeout, firewalls and IPS, upstream DDoS protection.

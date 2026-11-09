@@ -1,0 +1,39 @@
+3. Vulnerability Scanning (OpenVAS / Nessus)
+
+3.1 Concepts
+A vulnerability scanner tests hosts against a large database of known weaknesses and reports them with severity.
+Nmap vs vulnerability scanner: Nmap shows what is running. The scanner shows what is vulnerable.
+Vulnerability scan vs penetration test: the scan detects, a pentest exploits and proves impact.
+CVE: unique ID for a public vulnerability (e.g. CVE-2011-2523).
+CVSS: score from 0 to 10 for severity.
+NVT (Network Vulnerability Test): one check in OpenVAS’s feed.
+Authenticated vs unauthenticated scan: authenticated scans log in and find far more (missing patches), unauthenticated scans see only what’s exposed to the network.
+False positives: the scanner may report something that isn’t real, so verify important findings manually.
+
+3.2 OpenVAS (Greenbone) Components
+Component	             Role
+gvmd	                 Manager, handles tasks, targets, and reports
+ospd-openvas / openvas	 The scanner engine
+gsad	                 Web interface (port 9392)
+PostgreSQL	             Database
+Redis	                 Fast storage during scans
+Feeds (NVT, SCAP, CERT)	Vulnerability data that must stay updated
+
+3.3 Workflow
+Install and set up: sudo apt install gvm, sudo gvm-setup, sudo gvm-check-setup, sudo gvm-start.
+Log in at https://127.0.0.1:9392.
+Wait for the feeds to finish loading.
+Create a Target (IP of Metasploitable2) and a Task (e.g. “Full and fast” scan config), or use the Task Wizard.
+Run the task and wait until the status is Done.
+Open the Report and download as PDF or HTML.
+
+3.4 Severity Levels (CVSS v3)
+Level	Score	Meaning
+Critical	9.0 to 10.0	Easily exploitable, severe impact. Fix immediately
+High	7.0 to 8.9	Serious. Fix soon
+Medium	4.0 to 6.9	Moderate risk, often needs conditions
+Low	0.1 to 3.9	Minor
+Log / Info	0	Informational
+
+
+

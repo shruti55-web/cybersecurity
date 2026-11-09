@@ -1,0 +1,34 @@
+Firewall Basics
+
+5.1 Concepts
+A firewall filters traffic by rules (source, destination, protocol, port, state).
+iptables is the Linux packet filter (modern systems also use nftables or ufw as front ends).
+Tables: filter (default, allow or block), nat, mangle.
+Chains (in the filter table): INPUT (to this machine), OUTPUT (from this machine), FORWARD (through this machine).
+Targets: ACCEPT (allow), DROP (silently discard, scanner sees filtered), REJECT (discard and send an error back).
+Rules are checked top to bottom, and the first match wins. If none match, the chain’s default policy applies.
+
+5.2 Common Commands
+sudo iptables -L -n -v --line-numbers          # list rules
+sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT     # allow SSH (append)
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT     # allow HTTP
+sudo iptables -A INPUT -p tcp --dport 23 -j DROP       # block Telnet
+sudo iptables -I INPUT 1 -s 192.168.56.50 -j DROP      # insert at top, block an IP
+sudo iptables -D INPUT 3                               # delete rule number 3
+sudo iptables -F                                       # flush all rules
+
+5.3 A Safe Rule Set (allow specific ports, deny the rest)
+sudo iptables -A INPUT -i lo -j ACCEPT
+sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -P INPUT DROP        # default deny
+
+Add the ESTABLISHED rule and the SSH allow before setting the default to DROP, or you can lock yourself out.
+
+5.4 Demonstrating a Blocked Port Scan
+From Kali, scan the target (the firewalled machine): sudo nmap -sS 192.168.56.101. Ports show open.
+On the target, apply DROP rules (or the default-deny set above).
+Scan again from Kali. Blocked ports now show filtered and the scan takes longer.
+Optional logging of scan attempts: sudo iptables -A INPUT -p tcp --dport 23 -j LOG --log-prefix "BLOCKED: " (view with dmesg or the system log).
+Take before and after screenshots, since this is great demo material.
